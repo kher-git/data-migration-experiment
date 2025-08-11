@@ -1,7 +1,7 @@
 # AWS to OCI Data Migration Tool 🛠️
 
 This project provides a Python script and containerized solution to **migrate data files from AWS S3 to Oracle Cloud (OCI) Object Storage**.
-This tool supports compression and is flexible for both CLI and containerized environments.
+This tool supports compression and is flexible for both CLI and containerized environments. Follow the direction below to get started!
 
 ---
 
