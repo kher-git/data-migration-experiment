@@ -1,169 +1,192 @@
-# AWS to OCI Data Migration Tool 🛠️
+# 🛠️ AWS → OCI Data Migration Tool
 
-This project provides a Python script and containerized solution to **migrate data files from AWS S3 to Oracle Cloud (OCI) Object Storage**.
-This tool supports compression and is flexible for both CLI and containerized environments. Follow the instructions below to get started! Please provide comments or feedback. 
+This project lets you **migrate files from AWS S3 to Oracle Cloud Infrastructure (OCI) Object Storage**.
 
----
+You can run it in **two ways**:
 
-## 🧰 Features
+1. 🐍 **Local (Python CLI)** – interactive and beginner-friendly.  
+2. 🐳 **OCI Container Instance** – automated, non-interactive execution in the cloud.
 
-- 🔐 Secure AWS and OCI CLI authentication
-- 📦 Download files from S3, compress them, and upload to OCI
-- 🐍 Run natively or as a container via Podman or Docker
+Both methods use the same logic — download → compress → upload — but differ in setup and authentication.
 
 ---
 
-## 🔧 Prerequisites
+## ⚙️ Shared Prerequisites (for both methods)
 
-Whether running locally or in a container, make sure you have:
+Before running either version, you’ll need:
 
-- **Valid AWS and OCI credentials**
-- **Access to source S3 and destination OCI buckets**
-- **Python 3.11+**, if using locally
-- **Podman or Docker**, if using containers
-    - **Container Package URL** - https://github.com/kher-git/data-migration-experiment/pkgs/container/data-migration-experiment
+### ✅ Accounts & Buckets
+- **AWS account** with an S3 bucket containing readable files.  
+- **OCI account** with an Object Storage bucket created.  
+- **OCI user with API keys** (generate one if needed).
 
+### 🔑 Credentials Required
 
----
-
-## 📁 Setup Credentials
-
-### 🔑 AWS Credentials
-- Run
-```
-aws configure --profile my_profile
-```
-
-Creates: `~/.aws/credentials` & `~/.aws/config`
-
-### 🔐 OCI Credentials
-- Run
-
-```
-oci setup config
-```
-
-Creates: `~/.oci/config` & `~/.oci/api_key.pem`
-
-> If you already have credentials setup, then just ensure that follow the format shown in Step 3 
+| Service | Credential | Purpose |
+|----------|-------------|----------|
+| AWS | Access Key ID & Secret Access Key | Authenticate S3 access |
+| OCI | Tenancy OCID, User OCID, Fingerprint, Region, API Key (.pem) | Authenticate Object Storage |
 
 ---
 
-### 🐍 Method 1: Run Locally with Python
+## 🌍 OPTION 1 — Local Interactive Method (`migrate_prompts.py`)
 
-Run this project locally if you prefer full code visibility and customization.
+This version runs **locally** (your computer or Cloud Shell) and **prompts you** for details.  
+Best for manual testing or learning.
 
-#### 🔧 Step 1: Clone the Repository
-- Clone the source code to your machine
+---
 
-```
-git clone https://github.com/kher-git/data-migration-experiment.git  
+### 🧰 Step 1 — Clone the Repository
+```bash
+git clone https://github.com/your-username/data-migration-experiment.git
 cd data-migration-experiment
-```
-
-#### 📦 Step 2: Set Up Python Environment
-- Make sure you have Python 3.11+ installed
-
-```
-python3 -m venv venv  
+🐍 Step 2 — Set Up Python
+bash
+Copy code
+python3 -m venv venv
 source venv/bin/activate
-    # on Windows: source venv\Scripts\activate  
 pip install -r requirements.txt
-```
+🔐 Step 3 — Configure AWS and OCI
+AWS
 
-#### 🔐 Step 3: Set Up Your Credentials
-- Configure your AWS and OCI credentials to authorize cloud access.  
-- These credentials are stored separately but required together for migration to succeed.  
+bash
+Copy code
+aws configure --profile my_profile
+OCI
 
-#### AWS (~/.aws/credentials)
+bash
+Copy code
+oci setup config
+Upload the public key in the OCI Console under
+Profile → API Keys → Add API Key
 
-```
-[my_profile]  
-aws_access_key_id = YOUR_AWS_KEY  
-aws_secret_access_key = YOUR_AWS_SECRET
-```
+▶️ Step 4 — Run the Script
+bash
+Copy code
+python migrate_prompts.py
+The script will ask for:
 
-#### OCI (~/.oci/config)
+AWS profile or environment credentials
 
-```
-[DEFAULT]  
-user=ocid1.user.oc1...  
-fingerprint=XX:XX:XX...  
-key_file=/Users/yourname/.oci/api-key.pem  
-tenancy=ocid1.tenancy...  
-region=us-ashburn-1
-```
+AWS region & bucket
 
-> Ensure your credentials in these files follow their respective formats.
-> Ensure your AWS/OCI permissions allow for reading/writing to buckets.
+OCI profile & bucket
 
-#### ▶️ Step 4: Run the Script
-- Run the python script
-```
-python migrate.py
-```
+Local download folder and archive name
 
-##### 🧪 Example Output
+Success message:
 
-```
-[15:54:40] Setting up AWS S3 session...
-[15:54:40] Listing objects in S3 bucket 'disbatch' with prefix ''...
-[15:54:40] No files found in S3.
-[15:54:40] Compressing files into /tmp/aws_archive.tar.xz...
-[15:54:40] Compression complete.
-[15:54:40] Setting up OCI client...
-[15:54:41] Uploading aws_archive.tar.xz to OCI bucket 'DataMigration_BKT'...
-[15:54:41] Upload to OCI complete.
-[15:54:41] ✅ Data migration completed successfully.
-```
+Copy code
+✅ Data migration completed successfully.
+☁️ OPTION 2 — OCI Container Instance (migrate.py)
+This version runs automatically inside OCI without prompts.
+Instead, it reads environment variables you define.
 
----
+⚙️ Step 1 — Prepare OCI Access
+1️⃣ Create a Dynamic Group
+Console → Identity & Security → Dynamic Groups → Create Dynamic Group
 
-### 🐳 Method 2: Run in a Container (Podman/Docker)
+python
+Copy code
+ALL {resource.type = 'containerinstance', resource.compartment.id = '<your-compartment-ocid>'}
+2️⃣ Create a Policy
+Console → Identity & Security → Policies → Create Policy
 
-No Python installation or dependencies needed — just run via container!
+pgsql
+Copy code
+Allow dynamic-group <your-dg-name> to manage objects in compartment <your-compartment-name>
+🔑 Step 2 — Set Environment Variables
+Run these in Cloud Shell (replace placeholders):
 
-#### 🔐 Step 1: Set Up Credentials
-- Make sure you have the following files accessible on your local system:
+bash
+Copy code
+# OCI
+export COMPARTMENT_ID="<your-compartment-ocid>"
+export SUBNET_ID="<your-public-subnet-ocid>"
+export AD_NAME="$(oci iam availability-domain list --compartment-id $COMPARTMENT_ID --query 'data[0].name' --raw-output)"
+export CI_NAME="dme-ci-test"
 
-`~/.aws` – AWS credentials (read-only)  
-`~/.oci` – OCI config (read-only)
+# AWS
+export AWS_ACCESS_KEY_ID="<your-aws-access-key>"
+export AWS_SECRET_ACCESS_KEY="<your-aws-secret-key>"
+export AWS_DEFAULT_REGION="us-east-1"
+export AWS_BUCKET_NAME="<your-s3-bucket>"
+export AWS_PREFIX=""
 
-#### ▶️ Step 2: Pull & Run with Podman (or Docker)
-- Pull the public container from the Github Container Registry (replace podman with docker, if using Docker)
-```
-podman pull ghcr.io/kher-git/data-migration-experiment:latest  
-```
-- Mount your aws credentials and oci configuration to the container for authentication
-```
-podman run --rm -it \
-  -v $HOME/.aws:/root/.aws:ro \
-  -v $HOME/.oci:/root/.oci:ro \
-  ghcr.io/kher-git/data-migration-experiment:latest  
-```
+# OCI Bucket
+export OCI_BUCKET_NAME="<your-oci-bucket>"
+💡 Tip: Save these to a .env file to re-use later.
 
-> 💡 These `-v` flags mount your local credentials into the container securely so it can authenticate without hardcoding secrets.
+📁 Step 3 — Create Configuration Files
+vnics.json
 
-#### ✅ What Happens Inside:
-1. Downloads all files from your S3 bucket
-2. Compresses them into a `.tar.xz`
-3. Uploads that archive to your OCI Object Storage bucket
+bash
+Copy code
+cat > vnics.json <<EOF
+[
+  {
+    "subnetId": "$SUBNET_ID",
+    "assignPublicIp": "true"
+  }
+]
+EOF
+containers.json
 
----
+bash
+Copy code
+cat > containers.json <<EOF
+[
+  {
+    "imageUrl": "ghcr.io/your-username/data-migration-experiment:latest",
+    "command": ["python", "migrate.py"],
+    "environmentVariables": {
+      "AWS_ACCESS_KEY_ID": "$AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY": "$AWS_SECRET_ACCESS_KEY",
+      "AWS_DEFAULT_REGION": "$AWS_DEFAULT_REGION",
+      "AWS_BUCKET_NAME": "$AWS_BUCKET_NAME",
+      "AWS_PREFIX": "$AWS_PREFIX",
+      "OCI_BUCKET_NAME": "$OCI_BUCKET_NAME",
+      "LOCAL_DOWNLOAD_DIR": "/tmp/aws_migration",
+      "ARCHIVE_NAME": "aws_archive.tar.xz"
+    }
+  }
+]
+EOF
+🚀 Step 4 — Deploy the Container Instance
+bash
+Copy code
+oci container-instances container-instance create \
+  --compartment-id $COMPARTMENT_ID \
+  --availability-domain "$AD_NAME" \
+  --display-name $CI_NAME \
+  --shape "CI.Standard.A1.Flex" \
+  --shape-config '{"ocpus":1,"memoryInGBs":1}' \
+  --vnics file://vnics.json \
+  --containers file://containers.json
+Wait until "lifecycle-state": "ACTIVE" appears.
 
-## 📌 Notes on Container Usage
+🔍 Step 5 — Verify Your Migration
+bash
+Copy code
+oci os object list -bn $OCI_BUCKET_NAME --query "data[].name" --raw-output
+Expected output:
 
-- If pushing the image yourself, use:
-```
-podman push --format docker ghcr.io/YOUR_USERNAME/YOUR_REPO:latest
-```
-- You must log in using your **GitHub personal access token (PAT)** when prompted for a password during:
-```
-podman login ghcr.io
-```
+Copy code
+aws_archive.tar.xz
+That confirms the transfer succeeded.
 
----
+🧹 Step 6 — Clean Up
+bash
+Copy code
+oci container-instances container-instance delete \
+  --container-instance-id <your-ci-ocid> --force
+🧠 Notes & Tips
+migrate_prompts.py = interactive (local)
 
-## 📄 License
+migrate.py = non-interactive (container)
 
-MIT License – You’re free to use, modify, and share this tool with credit. Remove or change this license if needed.
+Log uploads are optional — their absence does not affect migration.
+
+Uses .tar.xz compression for smaller transfers.
+
+Tested on OCI CLI v3.67+ and Python SDK 2.160.3+.
