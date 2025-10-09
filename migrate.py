@@ -48,7 +48,8 @@ def setup_s3_client(region: str, profile: str = None):
             return boto3.client("s3", region_name=region)
     except NoCredentialsError:
         raise RuntimeError(
-            "No AWS credentials found or invalid profile. Either configure ~/.aws or set environment variables."
+            "No AWS credentials found or invalid profile."
+            "Either configure ~/.aws or set environment variables."
         )
 
 def download_from_s3(s3, bucket: str, prefix: str, local_dir: str) -> int:
@@ -157,7 +158,8 @@ if __name__ == "__main__":
         oci_config_file = getenv("OCI_CONFIG_FILE", "~/.oci/config")
         upload_logs_flag = getenv("UPLOAD_LOGS", "true").lower() in ("1", "true", "yes", "y")
 
-        s3 = setup_s3_client(aws_region)
+        aws_profile = getenv("AWS_PROFILE")
+        s3 = setup_s3_client(aws_region, profile=aws_profile)
         download_from_s3(s3, aws_bucket, aws_prefix, local_download_dir)
         archive_path = compress_directory(local_download_dir, archive_name)
         osc = setup_oci_object_storage_client(oci_profile=oci_profile, oci_config_file=oci_config_file)
